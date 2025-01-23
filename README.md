@@ -1,5 +1,8 @@
 # ocr-fpga
 
+## Objective
+Build a neural network on an FPGA for Optical Character Recognition (OCR), specifically for the digits 0-9, utilising an MCU to handle image transfer and storage for both training and inference.
+
 ## Documentation
 - [Literature Review](https://docs.google.com/document/d/1Mw-zQhisZdhnI0M7e62kSYx62g7rUHLurLZ0_DxqmGg/edit?usp=sharing)
 
