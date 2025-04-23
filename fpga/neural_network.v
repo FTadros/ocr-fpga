@@ -8,15 +8,17 @@ module neural_network (
     output wire [3:0] argmax_output,
 	 output wire [31:0] mm1_debug_data,
 	 output wire [31:0] mm2_debug_data,
-	 output wire signed [31:0] mm4_debug_data
+	 output wire signed [31:0] mm4_debug_data,
+    input wire signed [31:0] image_data [0:783],  // UART input data
+    input wire image_valid  // UART data valid signal
 );
 
     // Memory addresses for weights and inputs
-    wire [15:0] input_addr, weight1_addr, weight2_addr, weight3_addr, weight4_addr;
-    
+    wire [15:0] weight1_addr, weight2_addr, weight3_addr, weight4_addr;
+
     // Memory data signals
-    wire signed [31:0] input_data, weight1_data, weight2_data, weight3_data, weight4_data;
-    
+    wire signed [31:0] weight1_data, weight2_data, weight3_data, weight4_data;
+
     // Separate read/write addresses for each memory module
     wire [15:0] mm1_write_addr, mm1_read_addr;
     wire [15:0] relu1_write_addr, relu1_read_addr;
@@ -51,11 +53,6 @@ module neural_network (
     wire argmax_done;
 
     // Memory instantiations
-    image_memory input_mem(
-        .address(input_addr),
-        .data_out(input_data)
-    );
-
     matrix1 weight_mem1(
         .address(weight1_addr),
         .data_out(weight1_data)
@@ -147,8 +144,8 @@ module neural_network (
         .m(10'd1),
         .n(10'd64),
         .k(10'd784),
-        .input_addr(input_addr),
-        .input_data(input_data),
+        .input_addr(16'd0),  // Not used with UART data
+        .input_data(image_data[mm1_write_addr]),  // Use UART data directly
         .weight_addr(weight1_addr),
         .weight_data(weight1_data),
         .output_addr(mm1_write_addr),
@@ -275,7 +272,7 @@ module neural_network (
 
     // Output assignment
     assign done = (current_state == DONE);
-    
+
     // State machine control logic
     always @(*) begin
         start_mm1 = 0;
@@ -293,7 +290,7 @@ module neural_network (
                 else next_state = IDLE;
                 start_mm1 = start;
             end
-            
+
             LAYER1_MM: begin
                 if (mm1_done) begin
                     next_state = LAYER1_RELU;
@@ -302,7 +299,7 @@ module neural_network (
                     next_state = LAYER1_MM;
                 end
             end
-            
+
             LAYER1_RELU: begin
                 if (relu1_done) begin
                     next_state = LAYER2_MM;
@@ -311,7 +308,7 @@ module neural_network (
                     next_state = LAYER1_RELU;
                 end
             end
-            
+
             LAYER2_MM: begin
                 if (mm2_done) begin
                     next_state = LAYER2_RELU;
@@ -320,7 +317,7 @@ module neural_network (
                     next_state = LAYER2_MM;
                 end
             end
-            
+
             LAYER2_RELU: begin
                 if (relu2_done) begin
                     next_state = LAYER3_MM;
@@ -329,7 +326,7 @@ module neural_network (
                     next_state = LAYER2_RELU;
                 end
             end
-            
+
             LAYER3_MM: begin
                 if (mm3_done) begin
                     next_state = LAYER3_RELU;
@@ -338,7 +335,7 @@ module neural_network (
                     next_state = LAYER3_MM;
                 end
             end
-            
+
             LAYER3_RELU: begin
                 if (relu3_done) begin
                     next_state = LAYER4_MM;
@@ -347,7 +344,7 @@ module neural_network (
                     next_state = LAYER3_RELU;
                 end
             end
-            
+
             LAYER4_MM: begin
                 if (mm4_done) begin
                     next_state = ARGMAX;
@@ -356,16 +353,16 @@ module neural_network (
                     next_state = LAYER4_MM;
                 end
             end
-            
+
             ARGMAX: begin
                 if (argmax_done) next_state = DONE;
                 else next_state = ARGMAX;
             end
-            
+
             DONE: begin
                 next_state = IDLE;
             end
-            
+
             default: begin
                 next_state = IDLE;
             end
