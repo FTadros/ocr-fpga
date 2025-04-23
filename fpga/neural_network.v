@@ -1,12 +1,14 @@
 module neural_network (
     input wire clk,
+	 input wire clk2,
     input wire resetn,
     input wire start,
 	 input wire rx_serial,
     output wire done,
     output reg [3:0] current_state,
     output reg [3:0] next_state,
-    output wire [3:0] argmax_output
+    output wire [3:0] argmax_output,
+	 output wire[2:0] LEDR 
 );
 
     // Memory addresses for weights and inputs
@@ -57,12 +59,14 @@ module neural_network (
         .CLKS_PER_BIT(5209)  // Adjust based on your clock frequency and baud rate
     ) uart_collector (
         .i_Rst_L(resetn),
-        .i_Clock(clk),
+        .i_Clock(clk2),
         .i_RX_Serial(rx_serial),
         .i_Data_Addr(input_addr[9:0]),  // Connect address input (use only lower 10 bits)
         .o_Data_Ready(uart_data_ready),
         .o_Data_Valid(uart_data_valid),
-        .o_Data_Element(input_data)  // Get the data directly
+        .o_Data_Element(input_data),
+		  .LED(LEDR)
+			// Get the data directly
     );
 
     // Memory instantiations
