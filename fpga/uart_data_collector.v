@@ -8,7 +8,6 @@ module uart_data_collector
    output           o_Data_Ready,
    output           o_Data_Valid,
    output reg signed [31:0] o_Data_Element,  // Single element output
-	output [7:0] hex,
 	output [2:0] LED
    );
   // Constants
@@ -19,8 +18,9 @@ module uart_data_collector
   localparam RECEIVING_DATA  = 2'b01;
   localparam DATA_READY      = 2'b10;
   
+  //State Latching
   reg [7:0] r_Received_Byte;
-
+  reg r_Byte_Received;
  
   // Internal registers
   reg [1:0]  r_SM_Main;
@@ -55,10 +55,6 @@ module uart_data_collector
 	  else
 		 o_Data_Element = 32'd0;  // or high-Z if tristate output
 	end
-	
-	
-	reg r_Byte_Received;
-	
 
 	always @(posedge i_Clock or negedge i_Rst_L) begin
 	  if (~i_Rst_L) begin
@@ -144,15 +140,11 @@ module uart_data_collector
     end
   end
   
-
-	
-
  
   // Assign outputs
   assign o_Data_Ready = r_Data_Ready;
   assign o_Data_Valid = r_Data_Valid;
   
-  assign hex = o_Data_Element[7:0];
   assign LED = (r_SM_Main == IDLE)         ? 3'b001 :
              (r_SM_Main == RECEIVING_DATA) ? 3'b010 :
              (r_SM_Main == DATA_READY)     ? 3'b100 :
