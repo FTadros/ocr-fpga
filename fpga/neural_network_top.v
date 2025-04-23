@@ -2,6 +2,7 @@ module neural_network_top (
     input CLOCK_50,
     input [1:0] KEY,   // Start signal (active low)
     input [9:0] SW,
+	 input i_RX_Serial,
     output [9:0] LEDR, // LEDs for state indication
     output [6:0] HEX0  // 7-segment display for output
 );
@@ -42,13 +43,11 @@ module neural_network_top (
         .clk(clk),
         .resetn(resetn),
         .start(start),
+        .rx_serial(i_RX_Serial),
         .done(done),
         .current_state(current_state),
         .next_state(next_state),
-        .argmax_output(argmax_output),
-		  .mm1_debug_data(mm1_debug_data),
-		  .mm2_debug_data(mm2_debug_data),
-		  .mm4_debug_data(mm4_debug_data)
+        .argmax_output(argmax_output)
     );
  
 	 
