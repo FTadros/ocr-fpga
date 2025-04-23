@@ -141,11 +141,10 @@ uart_data_collector #(
         .i_Rst_L(KEY[0]),
         .i_Clock(MAX10_CLK1_50),
         .i_RX_Serial(ARDUINO_IO[0]),
-        .i_Data_Addr(0),  // Connect address input (use only lower 10 bits)
+        .i_Data_Addr(10'd783),  // Connect address input (use only lower 10 bits)
         .o_Data_Ready(),
         .o_Data_Valid(),
         .o_Data_Element(),  // Get the data directly
-		  .hex(HEX0),
 		  .LED(LEDR[2:0])
     );
 
