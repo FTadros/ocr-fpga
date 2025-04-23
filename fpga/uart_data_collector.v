@@ -50,13 +50,10 @@ module uart_data_collector
  
   // Output the requested data element
   always @(*) begin
-    o_Data_Element = r_Data[i_Data_Addr];
-  end
-  
-  always @(posedge i_Clock) begin
-	  if (w_RX_DV) begin
-		 r_Received_Byte <= w_RX_Byte_Hold;  // latch received byte
-	  end
+	  if (r_Data_Valid)
+		 o_Data_Element = r_Data[i_Data_Addr];
+	  else
+		 o_Data_Element = 32'd0;  // or high-Z if tristate output
 	end
 	
 	
@@ -64,10 +61,14 @@ module uart_data_collector
 	
 
 	always @(posedge i_Clock or negedge i_Rst_L) begin
-	  if (~i_Rst_L)
+	  if (~i_Rst_L) begin
 		 r_Byte_Received <= 1'b0;
-	  else
-		 r_Byte_Received <= w_RX_DV;  // track the pulse for a full cycle
+		 r_Received_Byte <= 8'd0;
+	  end else begin
+		 r_Byte_Received <= w_RX_DV;
+		 if (w_RX_DV)
+			r_Received_Byte <= w_RX_Byte_Hold;
+	  end
 	end
  
   // Main state machine (rest remains the same)
@@ -122,7 +123,7 @@ module uart_data_collector
             r_Byte_Count <= r_Byte_Count + 1;
            
             // Check if we've received all bytes
-            if (r_Byte_Count + 1 == BYTES_TO_RECEIVE - 1)
+            if (r_Byte_Count == BYTES_TO_RECEIVE - 1)
             begin
               r_SM_Main <= DATA_READY;
             end
