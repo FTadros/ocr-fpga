@@ -2,6 +2,7 @@ module neural_network (
     input wire clk,
     input wire resetn,
     input wire start,
+	 input wire rx_serial,
     output wire done,
     output reg [3:0] current_state,
     output reg [3:0] next_state,
@@ -49,13 +50,25 @@ module neural_network (
     wire mm1_done, mm2_done, mm3_done, mm4_done;
     wire relu1_done, relu2_done, relu3_done;
     wire argmax_done;
-
-    // Memory instantiations
-    image_memory input_mem(
-        .address(input_addr),
-        .data_out(input_data)
+	 
+	 // UART data signals
+    wire uart_data_ready;
+    wire uart_data_valid;
+	 
+    // Replace image_memory with uart_data_collector
+    uart_data_collector #(
+        .CLKS_PER_BIT(5209)  // Adjust based on your clock frequency and baud rate
+    ) uart_collector (
+        .i_Rst_L(resetn),
+        .i_Clock(clk),
+        .i_RX_Serial(rx_serial),
+        .i_Data_Addr(input_addr[9:0]),  // Connect address input (use only lower 10 bits)
+        .o_Data_Ready(uart_data_ready),
+        .o_Data_Valid(uart_data_valid),
+        .o_Data_Element(input_data)  // Get the data directly
     );
 
+    // Memory instantiations
     matrix1 weight_mem1(
         .address(weight1_addr),
         .data_out(weight1_data)
@@ -254,15 +267,16 @@ module neural_network (
 
     // State definitions
     localparam IDLE = 4'd0;
-    localparam LAYER1_MM = 4'd1;
-    localparam LAYER1_RELU = 4'd2;
-    localparam LAYER2_MM = 4'd3;
-    localparam LAYER2_RELU = 4'd4;
-    localparam LAYER3_MM = 4'd5;
-    localparam LAYER3_RELU = 4'd6;
-    localparam LAYER4_MM = 4'd7;
-    localparam ARGMAX = 4'd8;
-    localparam DONE = 4'd9;
+	 localparam WAIT_FOR_DATA = 4'd1;
+    localparam LAYER1_MM = 4'd2;
+    localparam LAYER1_RELU = 4'd3;
+    localparam LAYER2_MM = 4'd4;
+    localparam LAYER2_RELU = 4'd5;
+    localparam LAYER3_MM = 4'd6;
+    localparam LAYER3_RELU = 4'd7;
+    localparam LAYER4_MM = 4'd8;
+    localparam ARGMAX = 4'd9;
+    localparam DONE = 4'd10;
 
     // State transitions
     always @(posedge clk or negedge resetn) begin
@@ -289,10 +303,19 @@ module neural_network (
 
         case (current_state)
             IDLE: begin
-                if (start) next_state = LAYER1_MM;
+                if (start) next_state = WAIT_FOR_DATA;
                 else next_state = IDLE;
                 start_mm1 = start;
             end
+				
+				WAIT_FOR_DATA: begin
+					 if (uart_data_ready && uart_data_valid) begin
+						  next_state = LAYER1_MM;
+						  start_mm1 = 1;
+					 end else begin
+						  next_state = WAIT_FOR_DATA;
+					 end
+				end
             
             LAYER1_MM: begin
                 if (mm1_done) begin
