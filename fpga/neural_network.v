@@ -6,10 +6,7 @@ module neural_network (
     output wire done,
     output reg [3:0] current_state,
     output reg [3:0] next_state,
-    output wire [3:0] argmax_output,
-	 output wire [31:0] mm1_debug_data,
-	 output wire [31:0] mm2_debug_data,
-	 output wire signed [31:0] mm4_debug_data
+    output wire [3:0] argmax_output
 );
 
     // Memory addresses for weights and inputs
