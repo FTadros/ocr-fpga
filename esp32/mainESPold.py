@@ -12,11 +12,6 @@ def color_rgb(r, g, b):
 class TouchScreen(object):
     WHITE = color_rgb(255, 255, 255)
     BLACK = color_rgb(0, 0, 0)
-    draw_size = 1
-    
-    draw_area = 28
-    d_x = 140
-    d_y = 100
 
     class TouchArea:
         def __init__(self, x, y, w, h):
@@ -50,6 +45,7 @@ class TouchScreen(object):
         # UI elements
         self.Touch_items = []
         self.Touch_callbacks = []
+#         self.send_uart_data([5])
         self.initialize_ui()
         print("[UI] Ready\n")
 
@@ -57,28 +53,19 @@ class TouchScreen(object):
         """Create UI with square save button"""
         print("[UI] Building interface...")
         # Square save button parameters
-        btn_size = 64
-        btn_x = 248
-        btn_y = 176
+        btn_size = 32
+        btn_x = 280
+        btn_y = 208
 
         # Draw button
         self.Screen.fill_rectangle(btn_x, btn_y, btn_size, btn_size, self.WHITE)
         self.Screen.draw_rectangle(btn_x, btn_y, btn_size, btn_size, self.BLACK)
-        self.Screen.draw_text8x8(btn_x+16, btn_y+30, "SEND", self.BLACK, self.WHITE)
+        self.Screen.draw_text8x8(btn_x+8, btn_y+12, "SAVE", self.BLACK, self.WHITE)
         self.addTouchItem(self.TouchArea(btn_x, btn_y, btn_size, btn_size), self.save_mnist)
-        
-        # Draw bound parameters
-        draw_area = 28
-        d_x = 140
-        d_y = 100
-
-        # Draw button
-        self.Screen.fill_rectangle(d_x, d_y, draw_area, draw_area, self.WHITE)
-        self.Screen.draw_rectangle(d_x, d_y, draw_area, draw_area, self.BLACK)
 
         # Instructions
         self.Screen.draw_text8x8(10, 10, "Draw Digit", self.BLACK, self.WHITE)
-        self.Screen.draw_text8x8(10, 30, "Press SEND when done", self.BLACK, self.WHITE)
+        self.Screen.draw_text8x8(10, 30, "Press SAVE when done", self.BLACK, self.WHITE)
         print("[UI] Interface built")
 
     def addTouchItem(self, area, callback):
@@ -104,9 +91,8 @@ class TouchScreen(object):
 
         # Handle drawing
         if not self.freeze:
-            if self.d_x < x and x < self.d_x + self.draw_area and self.d_y < y and y < self.d_y + self.draw_area:
-                print(f"[DRAW] Start at ({x},{y})")
-                self.process_drawing(x, y)
+            print(f"[DRAW] Start at ({x},{y})")
+            self.process_drawing(x, y)
 
     def process_drawing(self, x, y):
         """Manage drawing operations"""
@@ -119,12 +105,9 @@ class TouchScreen(object):
     def draw_point(self, x, y):
         """Draw single pixel"""
         if 0 <= x < 320 and 0 <= y < 240:
-            self.Screen.fill_circle(x, y, self.draw_size, self.BLACK)
+            self.Screen.fill_circle(x, y, 3, self.BLACK)
             self.set_pixel(x, y, True)
-            self.set_pixel(x+1, y, True)
-            self.set_pixel(x-1, y, True)
-            self.set_pixel(x, y+1, True)
-            self.set_pixel(x, y-1, True)
+            print(f"[DRAW] Point ({x},{y})")
 
     def draw_line(self, x, y):
         """Connect points smoothly"""
@@ -163,26 +146,49 @@ class TouchScreen(object):
     def save_mnist(self):
         """Process and export drawing"""
         print("\n[SAVE] Initiating...")
+#         print(self.buffer)
         self.freeze = True
         self.process_mnist_data()
         self.reset_canvas()
         self.freeze = False
         print("[SAVE] Completed\n")
-        
-    def extract_mnist_region(self):
-        """Extract 28x28 region as bit-packed 1bpp data (98 bytes)"""
-        mnist_bits = bytearray(98)  # 784 bits / 8 = 98 bytes
-        bit_index = 0
+    
+    def scale_and_convert_to_bytearray(self, x_start, y_start, src_width, src_height):
+        dst_width = dst_height = 28
+        scale_x = src_width / dst_width
+        scale_y = src_height / dst_height
+        filename = "tmp.txt"
 
-        for y in range(self.d_y, self.d_y + self.draw_area):
-            for x in range(self.d_x, self.d_x + self.draw_area):
-                if self.get_pixel(x, y):
-                    byte_index = bit_index // 8
-                    bit_offset = 7 - (bit_index % 8)
-                    mnist_bits[byte_index] |= (1 << bit_offset)
+        total_bits = dst_width * dst_height
+        total_bytes = total_bits // 8  # 784 bits / 8 = 98 bytes
+        result = bytearray(total_bytes)
+
+        bit_index = 0  # Tracks bit position in the final bytearray
+
+        for y in range(dst_height):
+            for x in range(dst_width):
+                src_x = int(x_start + x * scale_x)
+                src_y = int(y_start + y * scale_y)
+
+                if 0 <= src_x < 320 and 0 <= src_y < 240:
+                    pixel = self.get_pixel(src_x, src_y)
+                else:
+                    pixel = 0
+
+                byte_index = bit_index // 8
+                bit_offset = 7 - (bit_index % 8)  # MSB first
+                if pixel:
+                    result[byte_index] |= (1 << bit_offset)
                 bit_index += 1
+        try:
+            with open(filename, "wb") as f:
+                f.write(result)
+            print(f"[FILE] Saved to '{filename}' ({len(result)} bytes)")
+        except Exception as e:
+            print(f"[ERROR] Failed to write file: {e}")
 
-        return mnist_bits
+        return result
+
 
 
     def process_mnist_data(self):
@@ -198,28 +204,52 @@ class TouchScreen(object):
                     min_y = min(y, min_y) if min_y else y
                     max_y = max(y, max_y) if max_y else y
 
-        if min_x is None:
+        if not min_x:
             print("[ERROR] No drawing found!")
             return
 
         print(f"[MNIST] Bounds X({min_x}-{max_x}) Y({min_y}-{max_y})")
         width = max_x - min_x
         height = max_y - min_y
-
-        mnist_data = mnist_data = self.extract_mnist_region()
-        print(f"[MNIST] Prepared {len(mnist_data)} bytes")
-        self.send_uart_data(mnist_data)
+        image_sc = self.scale_and_convert_to_bytearray(min_x - 5, min_y - 5, width + 10, height + 10)
+        self.send_uart_data(image_sc)
 
     def send_uart_data(self, mnist_data):
         """Send MNIST data over UART"""
         print("[UART] Initializing UART...")
         uart = UART(1, baudrate=9600, bits=8, parity=None, stop=1, tx=22, rx=27)  # Using UART1 with TX on GPIO 22
-        data_bytes = bytearray(b'\x00')
-        data_bytes += bytearray(mnist_data)
+        # uart.init(9600, bits=8, parity=None, stop=1) # init with given parameters
+        # Get the MNIST data
+#         mnist_data = []
+#         for y in range(28):
+#             for x in range(28):
+#                 # Calculate source coordinates
+#                 src_x = int(x * (320/28))
+#                 src_y = int(y * (240/28))
+#
+#                 # Sample the pixel value
+#                 intensity = 0
+#                 if 0 <= src_x < 320 and 0 <= src_y < 240:
+#                     intensity = 255 if self.get_pixel(src_x, src_y) else 0
+#                 mnist_data.append(intensity)
+#
+#         # Validate data size
+#         if len(mnist_data) != 784:
+#             print(f"[ERROR] Invalid data size: {len(mnist_data)} bytes (expected 784)")
+#             return
+
+        # Convert data to bytes and send
+#         data_bytes = self.bitmap_1bit_to_bytearray(mnist_data)
+        data_bytes = mnist_data
         print(data_bytes)
         print(f"[UART] Sending {len(data_bytes)} bytes...")
         uart.write(data_bytes)
         print(uart.any())
+        # Verify data was sent
+        #if uart.any():
+        #    print("[UART] Data sent successfully")
+        #else:
+        #    print("[ERROR] Failed to send data")
 
     def reset_canvas(self):
         """Clear screen and buffers"""
