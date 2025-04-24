@@ -309,14 +309,14 @@ module neural_network (
                 start_mm1 = start;
             end
 				
-				WAIT_FOR_DATA: begin
-					 if (uart_data_ready && uart_data_valid) begin
-						  next_state = LAYER1_MM;
-						  start_mm1 = 1;
-					 end else begin
-						  next_state = WAIT_FOR_DATA;
-					 end
-				end
+	    WAIT_FOR_DATA: begin
+	      if (uart_data_ready && uart_data_valid) begin
+	        next_state = LAYER1_MM;
+		start_mm1 = 1;
+	      end else begin
+		next_state = WAIT_FOR_DATA;
+	      end
+	    end
             
             LAYER1_MM: begin
                 if (mm1_done) begin
