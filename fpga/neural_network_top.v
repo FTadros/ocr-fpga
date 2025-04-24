@@ -2,7 +2,7 @@ module neural_network_top (
     input CLOCK_50,
     input [1:0] KEY,   // Start signal (active low)
     input [9:0] SW,
-	 input Arduino_IO0,
+    input Arduino_IO0,
     output [9:0] LEDR, // LEDs for state indication
     output [6:0] HEX0  // 7-segment display for output
 );
@@ -14,10 +14,6 @@ module neural_network_top (
     wire resetn;
     wire done;
     wire [3:0] argmax_output;
-	 wire [31:0] mm1_debug_data;
-	 wire [31:0] mm2_debug_data;
-	 wire [31:0] mm4_debug_data;
-	 wire [31:0] matrix1_data;
     
     // State signals
     wire [3:0] current_state;
@@ -41,7 +37,7 @@ module neural_network_top (
     // Neural network instance
     neural_network nn (
         .clk(clk),
-		  .clk2(CLOCK_50),
+        .clk2(CLOCK_50),
         .resetn(resetn),
         .start(start),
         .rx_serial(Arduino_IO0),
@@ -49,17 +45,12 @@ module neural_network_top (
         .current_state(current_state),
         .next_state(next_state),
         .argmax_output(argmax_output),
-		  .LEDR(LEDR[6:4])
+	.LEDR(LEDR[6:4])
     );
  
-	 DisplayNum display_hex(
-		  .num(argmax_output),
-		  .hex(HEX0)
-	 );
-	 
-	 image_memory weight_mem1(
-        .address(5),
-        .data_out(matrix1_data)
+    DisplayNum display_hex(
+	num(argmax_output),
+	.hex(HEX0)
     );
-
+	
 endmodule
